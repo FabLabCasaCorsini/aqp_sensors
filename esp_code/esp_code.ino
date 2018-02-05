@@ -62,7 +62,6 @@ bool connection_ok = false;
 #include "DHT.h"
 
 // < --- Include OneWire library --->
-#include <OneWire.h>  // https://goo.gl/Ygk5Id
 #include <DallasTemperature.h> // DS18B20  https://goo.gl/xmlB9d
 
 // < --- Include I2C library --->
@@ -230,6 +229,7 @@ void setup() {
   //wifiManager.resetSettings();
 
   wifiManager.autoConnect("HydraPonics");
+  connection_ok = true;
   Serial.print("WiFi connected - Local IP address: ");
   Serial.println(WiFi.localIP());
   //--------------------
