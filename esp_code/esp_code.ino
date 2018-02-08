@@ -14,7 +14,7 @@
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
   You should have received a copy of the GNU General Public License
-  along with ClEnSensors.  If not, see <http://www.gnu.org/licenses/>.
+  along with aqp_sensors.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 //TODO: Not sure these defines are working.
@@ -37,14 +37,7 @@
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
 
-// <--- Include the correct MQTT Adafruit library --->
-/*  ----> MQTT Adafruit library: https://goo.gl/4ewcc2
-            Adafruit tutorial: https://goo.gl/BVXdso
-    ----> MQTT Broker: io.adafruit.com
-            Chrome: MQTTLens
-*/
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <PubSubClient.h>
 bool connection_ok = false;
 
 // <--- Include the correct display library --->
@@ -115,36 +108,15 @@ bool connection_ok = false;
 
 
 // ---- MQTT connection ---------
-// TODO: Configurable MQTT settings
-#define AIO_SERVER      "io.adafruit.com"
-#define AIO_SERVERPORT  1883  // use 8883 for SSL
-#define AIO_USERNAME    "MarkCalaway"
-#define AIO_KEY         "8533e8dbf95646858144232621bb963d"
+// TODO: Configurable settings
+#define DBRD_SERVER      "demo.thingsboard.io"
+#define DBRD_SERVERPORT  1883  // use 8883 for SSL
+#define DBRD_USERNAME    "MarkCalaway"  // Non serve
+#define DBRD_KEY         "MsmdUsdCTpXm1S3tR5br"
 
 WiFiClient client;
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
-
-/****************************** Feeds ***************************************/
-
-// Setup a feed called 'dht11' for publishing.
-Adafruit_MQTT_Publish dht_temperature = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/dht_temperature");
-
-Adafruit_MQTT_Publish dht_humidity = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/dht_humidity");
-
-Adafruit_MQTT_Publish diss_oxygen = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/Ossigeno_dish");
-
-Adafruit_MQTT_Publish or_potential = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/Potenziale_OR");
-
-Adafruit_MQTT_Publish PH = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/PH");
-
-Adafruit_MQTT_Publish Conducibilita = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/Conducibilita");
-
-Adafruit_MQTT_Publish w_temperature = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/w_temperature");
-
-// Setup a feed called 'onoff' for subscribing to changes.
-// Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/onoff");
-
-/************************************************************/
+  
+PubSubClient psub_client(client);
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -243,6 +215,7 @@ void setup() {
      pushing the configuration prameters to Arduino that are stored in
      the EEPROM
   */
+  psub_client.setServer( DBRD_SERVER, DBRD_SERVERPORT );
 
 #ifdef oled
   // Initialising the UI will init the display too.
@@ -269,19 +242,6 @@ void loop() {
 
   if ( connection_ok == true ) MQTT_connect();
   else Serial.println("Wifi NOT connected.");
-
-  /*
-    This is our 'wait for incoming subscription packets' busy subloop
-    try to spend your time here
-
-    Adafruit_MQTT_Subscribe *subscription;
-    while ((subscription = mqtt.readSubscription(5000))) {
-    if (subscription == &onoffbutton) {
-      Serial.print(F("Got: "));
-      Serial.println((char *)onoffbutton.lastread);
-    }
-    }
-  */
 
   if (cnt_values < AVG_VALUES)  //Measures are collected only AVG_VALUES times
     collect_measures();
@@ -389,11 +349,33 @@ void send_message() {
 
   //Add here the code that sends the message via network
   //In this case will be via MQTT/WiFi
+  /*
   or_potential.publish(ORP_value / AVG_VALUES);
   diss_oxygen.publish(DO_value / AVG_VALUES);
   dht_temperature.publish(DHT_temp / AVG_VALUES);
   dht_humidity.publish(DHT_hum / AVG_VALUES);
   w_temperature.publish(W_TEMP / AVG_VALUES);
+  */
+
+  // Prepare a JSON payload string
+  String payload = "{";
+  payload += "\"ph_value\":"; payload += (ORP_value / AVG_VALUES); //Note: the ORP is corrected to give the pH
+  payload += ",";  
+  payload += "\"oxy_value\":"; payload += (DO_value / AVG_VALUES);
+  payload += ",";    
+  payload += "\"dht_temp\":"; payload += (DHT_temp / AVG_VALUES); 
+  payload += ",";
+  payload += "\"dht_hum\":"; payload += (DHT_hum / AVG_VALUES);
+  payload += ",";
+  payload += "\"water_temp\":"; payload += (W_TEMP / AVG_VALUES);  
+  payload += "}";
+
+  // Send payload
+  char attributes[100];
+  payload.toCharArray( attributes, 100 );
+  psub_client.publish( "v1/devices/me/telemetry", attributes );
+  Serial.println( attributes );
+
 }
 
 /**

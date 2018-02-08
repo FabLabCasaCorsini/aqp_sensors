@@ -7,17 +7,17 @@ void MQTT_connect() {
   int8_t ret;
 
   // Stop if already connected.
-  if (mqtt.connected()) {
+  if (psub_client.connected()) {
     return;
   }
 
-  Serial.println("Connecting to MQTT... ");
+  Serial.println("Connecting to MQTT Dashboard... ");
 
   //uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-    Serial.println(mqtt.connectErrorString(ret));
+  while (!psub_client.connect("Hydra Controller", DBRD_KEY, NULL)) { 
+    Serial.println("Failed MQTT Connection:" + psub_client.state());
     Serial.println("Retrying MQTT connection in 5 seconds...");
-    mqtt.disconnect();
+    psub_client.disconnect();
     delay(5000);  // wait 5 seconds
   }
   Serial.println("MQTT Connected!");
