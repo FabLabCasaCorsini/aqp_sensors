@@ -89,12 +89,14 @@ bool connection_ok = false;
 //EZO Dissolved Oxiygen Sensor from Atlas Scientific
 //https://www.atlas-scientific.com/dissolved-oxygen.html
 #define DO_ADDRESS 97
-#define DO_CORR_OFFSET -0.5
+#define DO_CORR_OFFSET -0.41
 // < --------------- ORP I2C --------------- >
 //https://www.atlas-scientific.com/orp.html
 #define ORP_ADDRESS 98
 #define ORP_CORR_FACTOR -0.01797
 #define ORP_CORR_OFFSET 7.050
+#define PH_CALIBRATION_SLOPE 0.952
+#define PH_CALIBRATION_INTCP 0.197
 // < --------------------------------------- >
 #define I2C_DATA_LENGTH 20
 #define SNS_CAL_READ_TIME 1800
@@ -350,6 +352,7 @@ void collect_measures() {
   // The ATS_float global var will hold the measure
   ATS_read(ORP_ADDRESS);
   corr_ats_value = ATS_float * ORP_CORR_FACTOR + ORP_CORR_OFFSET;
+  corr_ats_value = corr_ats_value * PH_CALIBRATION_SLOPE + PH_CALIBRATION_INTCP;
   Serial.print("pH value:");
   Serial.println(corr_ats_value);
   if (ATS_data_valid) ORP_value += corr_ats_value;
